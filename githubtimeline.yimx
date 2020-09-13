@@ -1,0 +1,39 @@
+import ["stdsx", "http", "json", "functional", "date"]
+
+header = "* Prints current GitHub timeline in Yimx Programming Language *"
+println "*" * header.length
+println header
+println "*" * header.length
+
+
+// Executes in new thread
+thread(::http, "https://api.github.com/events", def(r) {
+  foreach(jsondecode(r), ::show_github_events)
+})
+
+def show_github_events(event) {
+  println event.created_at.formatTzDate()
+  println "User: https://github.com/" + event.actor.login
+  println githubevent_type(event)
+  println "-" * 50
+}
+
+def githubevent_type(event) {
+    repo = "https://github.com/" + event.repo.name
+    payload = event.payload
+    return match event.type {
+      case "CommitCommentEvent": "commented commit in " + repo + "\n" + payload.comment.body
+      case "CreateEvent": "created " + payload.ref_type + " on " + repo
+      case "DeleteEvent": "deleted " + payload.ref_type + " on " + repo
+      case "ForkEvent": "forked repository " + repo
+      case "IssueCommentEvent": "commented issue " + payload.issue.title + " on " + repo + "\n" + payload.comment.body
+      case "IssuesEvent": payload.action + " issue '" + payload.issue.title + "' on " + repo
+      case "PullRequestEvent": payload.action + " pull request #" + payload.number + " '" + payload.pull_request.title + "' on " + repo
+      case "PushEvent": "pushed " + length(payload.commits) + " commits to " + repo
+      case "WatchEvent": "start watching repository " + repo
+      case type : type + " on " + repo
+    }
+}
+
+def formatTzDate(str) = formatDate(parseTzDate(str), newFormat("yyyy-MM-dd HH:mm:ss"))
+def parseTzDate(str) = parseDate(str, newFormat("yyyy-MM-dd'T'HH:mm:ss'Z'"))
